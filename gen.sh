@@ -11,7 +11,11 @@ then
 	exit 1
 fi
 
-cd data;rm *;cd ..
+if [ ! -d "./data" ]
+then
+	mkdir data
+fi
+rm -rf data/*
 
 echo Generating rule...
 ./bin/db_generator -bc ./parameter_files/acl1_seed $1 2 -0.5 0.1 $rule_file_name
