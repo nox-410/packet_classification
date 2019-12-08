@@ -1,15 +1,10 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Sun Dec  1 20:38:41 2019
 
-@author: Administrator
-"""
 
 import tensorflow as tf
 from tensorflow import keras
 import numpy as np
 
-rule_number = 1024
+rule_number = 1000
 
 def preprocess(path):
     f = open(path)
@@ -33,11 +28,11 @@ def preprocess(path):
     head = np.concatenate((sip,dip,sport,dport,prot),axis=1)
     head = tf.convert_to_tensor(head)
     
-    head = tf.one_hot(head,256)
-    head = tf.reshape(head,(-1,256*13))
-    head = tf.cast(head,tf.float32)
+#    head = tf.one_hot(head,256)
+#    head = tf.reshape(head,(-1,256*13))
+#    head = tf.cast(head,tf.float32)
     
-    #head = head/128 - 1
+    head = head/128 - 1
     index = tf.convert_to_tensor(A[:,6])
     index = tf.one_hot(index,rule_number)
     #train_db = tf.data.Dataset.from_tensor_slices((head,index))
@@ -66,10 +61,15 @@ class classifier(keras.Model):
 if __name__ == "__main__":
     model = classifier()
     #model.build((None,13))
-    model.compile(optimizer=tf.optimizers.RMSprop(1e-3),
+    model.compile(optimizer=tf.optimizers.RMSprop(1e-4),
                       loss="categorical_crossentropy",
                       metrics=['accuracy'])
     for i in  range(1,101):
         x,y = preprocess("data/rule_{0}_{1}.trace".format(rule_number,i))        
-        model.fit(x,y,batch_size=64,epochs=3)
-        
+        model.fit(x,y,batch_size=256,epochs=1)
+
+
+for i in  range(1,101):
+    x,y = preprocess("data/rule_{0}_{1}.trace".format(rule_number,i))
+    model.call(x)
+
