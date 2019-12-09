@@ -88,7 +88,7 @@ class linar_classifier():
         x = (x - self.rule)*self.mask
         x = (x >= 0)
         x = x.all(dim=2)
-        x = tc.where((x > 0.5),
+        x = tc.where(x,
                         tc.tensor(range(x.shape[1]),dtype=tc.int32,device="cuda"),
                         tc.tensor(x.shape[1],dtype=tc.int32,device="cuda"))
         x = x.argmin(dim=1)
@@ -116,7 +116,6 @@ if __name__ == "__main__":
     i = 1
     x,y = model.preprocess("data/rule_{0}_{1}.trace".format(rule_number,i))
     
-
     start_time = time.time()
     re = model.call_on_batch(x,256)
     print(time.time()-start_time)

@@ -89,10 +89,10 @@ if __name__ == "__main__":
             train_loss = 0.0
             train_acc = 0.0
             
-            x,_ = classifier.preprocess("data/rule_{0}_{1}.trace".format(rule_number,1))
+            x,_ = classifier.preprocess("data/rule_{0}_{1}.trace".format(rule_number,i))
             y = classifier.call_on_batch(x,256)
             
-            x,_ = preprocess("data/rule_{0}_{1}.trace".format(rule_number,1))    
+            x,_ = preprocess("data/rule_{0}_{1}.trace".format(rule_number,i)) 
             MyDataSet = HeaderData(x,y)
             loader = tc.utils.data.DataLoader(MyDataSet,
                                               batch_size=256,
