@@ -73,40 +73,47 @@ class classifier(tc.nn.Module):
 
 
 
+
 if __name__ == "__main__":
     rule_number = 256
     
     model = classifier(13,rule_number).cuda()
     classifier = linar_classifier("data/rule_{0}.rule".format(rule_number))
-    optimizer = tc.optim.Adam(model.parameters(),lr=0.001)
     loss_fn = tc.nn.CrossEntropyLoss()
     
-    for i in  range(1,10):
-        
-        train_loss = 0.0
-        train_acc = 0.0
-        
-        x,_ = classifier.preprocess("data/rule_{0}_{1}.trace".format(rule_number,1))
-        y = classifier.call_on_batch(x,256)
-        
-        x,_ = preprocess("data/rule_{0}_{1}.trace".format(rule_number,1))    
-        MyDataSet = HeaderData(x,y)
-        loader = tc.utils.data.DataLoader(MyDataSet,
-                                          batch_size=256,
-                                          shuffle=True)
-        for batchx,batchy in tqdm(loader):
-            batchx,batchy = Variable(batchx),Variable(batchy)
-            def closure():
-                global train_loss,train_acc
-                optimizer.zero_grad()
-                output = model(batchx)
-                loss = loss_fn(output,batchy)
-                train_loss += loss.item()
-                label = torch.max(output, 1)[1]
-                train_acc += (label==batchy).sum().item()
-                loss.backward()
-                return loss
-            optimizer.step(closure)
-        print('Train Loss: {:.6f}, Acc: {:.6f}'.format(train_loss/x.shape[0],
-              train_acc/x.shape[0]))
-
+    
+    def train_on_file(st,ed,lr):
+        optimizer = tc.optim.Adam(model.parameters(),lr=lr)
+        for i in  range(st,ed):
+            
+            train_loss = 0.0
+            train_acc = 0.0
+            
+            x,_ = classifier.preprocess("data/rule_{0}_{1}.trace".format(rule_number,1))
+            y = classifier.call_on_batch(x,256)
+            
+            x,_ = preprocess("data/rule_{0}_{1}.trace".format(rule_number,1))    
+            MyDataSet = HeaderData(x,y)
+            loader = tc.utils.data.DataLoader(MyDataSet,
+                                              batch_size=256,
+                                              shuffle=True)
+            for batchx,batchy in tqdm(loader):
+                batchx,batchy = Variable(batchx),Variable(batchy)
+                def closure():
+                    nonlocal train_loss,train_acc
+                    optimizer.zero_grad()
+                    output = model(batchx)
+                    loss = loss_fn(output,batchy)
+                    train_loss += loss.item()
+                    label = torch.max(output, dim=1)[1]
+                    train_acc += (label==batchy).sum().item()
+                    loss.backward()
+                    return loss
+                optimizer.step(closure)
+            print('file {:d} Train Loss: {:.6f}, Acc: {:.6f}'.format(i,
+                  train_loss/x.shape[0],
+                  train_acc/x.shape[0]))
+    
+    train_on_file(1,50,1e-3)
+    train_on_file(50,80,1e-4)
+    train_on_file(80,100,1e-5)
