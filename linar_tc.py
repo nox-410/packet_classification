@@ -54,8 +54,9 @@ def Init_rule_set(path):
 
 
 
-class linar_classifier():
+class linar_classifier(tc.nn.Module):
     def __init__(self,path):
+        super(linar_classifier, self).__init__()
         rule_set = Init_rule_set(path)
         self.rule = tc.tensor(rule_set,
                               dtype=tc.int64,
@@ -63,48 +64,48 @@ class linar_classifier():
         self.mask = tc.tensor([1,1,1,1,1,-1,-1,-1,-1,-1],
                               dtype=tc.int64,
                               device="cuda")
-        
+
     def preprocess(self,path):
         f = open(path)
         A = np.array(list(map(int,f.read().split())))
         A = A.reshape((-1,7))
-        f.close() 
-        sip = A[:,0].reshape((-1,1)) 
+        f.close()
+        sip = A[:,0].reshape((-1,1))
         dip = A[:,1].reshape((-1,1))
         sport = A[:,2].reshape((-1,1))
         dport = A[:,3].reshape((-1,1))
         prot = A[:,4].reshape((-1,1))
-    
+
         head = np.concatenate((sip,dip,sport,dport,prot),axis=1)
         head = tc.tensor(head,device="cuda")
-    
+
         index = tc.tensor(A[:,6],device="cuda")
-        
+
         return head,index
-        
-    def call(self,x):
+
+    def forward(self,x):
         x = tc.reshape(x,[-1,1,5])
         x = x.repeat([1,1,2])
         x = (x - self.rule)*self.mask
         x = (x >= 0)
         x = x.all(dim=2)
         x = tc.where(x,
-                        tc.tensor(range(x.shape[1]),dtype=tc.int32,device="cuda"),
-                        tc.tensor(x.shape[1],dtype=tc.int32,device="cuda"))
+                     tc.arange(end = x.shape[1],dtype=tc.int32,device="cuda"),
+                     tc.tensor(x.shape[1],dtype=tc.int32,device="cuda"))
         x = x.argmin(dim=1)
 
         return x
-    
+
     def call_on_batch(self,x,batch):
         size = x.shape[0]
         i = 0
         y = tc.zeros(size,dtype=tc.int64,device="cuda")
         while i < size:
-            y[i:i+batch] = self.call(x[i:i+batch])
+            y[i:i+batch] = self.forward(x[i:i+batch])
             i = i + batch
         return y
-            
-            
+
+
 
 
 
@@ -112,12 +113,13 @@ if __name__ == "__main__":
     rule_number = 256
     path = "data/rule_{0}.rule".format(rule_number)
     model = linar_classifier(path)
-    
+
     i = 1
     x,y = model.preprocess("data/rule_{0}_{1}.trace".format(rule_number,i))
-    
+
     start_time = time.time()
     re = model.call_on_batch(x,256)
     print(time.time()-start_time)
-
+    sc = tc.jit.script(model)
+    sc.save("model/model.pt")
 
