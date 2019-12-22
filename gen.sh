@@ -22,7 +22,7 @@ echo Generating rule...
 ./bin/db_generator -bc ./parameter_files/acl1_seed $1 2 -0.5 0.1 $rule_file_name
 
 
-threshold=$((100000/$1))
+threshold=$((100000/$1 + 1))
 
 echo Generating Trace...
 for i in $(seq 1 $2)
