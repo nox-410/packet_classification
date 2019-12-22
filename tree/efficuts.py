@@ -1,7 +1,7 @@
 import math
 import datetime
 
-from tree import *
+from .tree import *
 
 
 class EffiCuts(object):
