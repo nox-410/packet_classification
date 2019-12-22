@@ -1,0 +1,630 @@
+From a0ae19732df38962d5dc6e339dc64dc7b475978c Mon Sep 17 00:00:00 2001
+From: SYN <1700012728@pku.edu.cn>
+Date: Sat, 21 Dec 2019 20:38:18 -0800
+Subject: [PATCH] Create patch for bess in packet_classification 1 add module
+ pc_acl 2 add module pc_dpdk 3 create script for two modules Signed-off-by:
+ SYN <1700012728@pku.edu.cn>
+
+---
+ bessctl/conf/pc_acl.bess  |  94 ++++++++++++++++++++++++++++++++
+ bessctl/conf/pc_dpdk.bess |  94 ++++++++++++++++++++++++++++++++
+ core/modules/pc_acl.cc    |  75 +++++++++++++++++++++++++
+ core/modules/pc_acl.h     |  47 ++++++++++++++++
+ core/modules/pc_dpdk.cc   | 112 ++++++++++++++++++++++++++++++++++++++
+ core/modules/pc_dpdk.h    | 102 ++++++++++++++++++++++++++++++++++
+ protobuf/module_msg.proto |  33 +++++++++++
+ 7 files changed, 557 insertions(+)
+ create mode 100644 bessctl/conf/pc_acl.bess
+ create mode 100644 bessctl/conf/pc_dpdk.bess
+ create mode 100644 core/modules/pc_acl.cc
+ create mode 100644 core/modules/pc_acl.h
+ create mode 100644 core/modules/pc_dpdk.cc
+ create mode 100644 core/modules/pc_dpdk.h
+
+diff --git a/bessctl/conf/pc_acl.bess b/bessctl/conf/pc_acl.bess
+new file mode 100644
+index 00000000..578eb972
+--- /dev/null
++++ b/bessctl/conf/pc_acl.bess
+@@ -0,0 +1,94 @@
++import scapy.all as scapy
++import struct
++import socket
++import random
++import os
++
++_map_proto = {0x06:scapy.TCP,0x17:scapy.UDP}
++
++def map_proto(proto):
++    if proto in _map_proto.keys():
++        return _map_proto[proto]
++    else:
++        return scapy.TCP
++
++
++def gen_packet(src_ip, dst_ip, s_port, d_port, proto):
++    # we don't care ether
++    eth = scapy.Ether(src='02:1e:67:9f:4d:ae', dst='06:16:3e:1b:72:32')
++    proto = map_proto(proto)
++    src_ip = socket.inet_ntoa(struct.pack('I',socket.htonl(src_ip)))
++    dst_ip = socket.inet_ntoa(struct.pack('I',socket.htonl(dst_ip)))
++    ip = scapy.IP(src=src_ip, dst=dst_ip)
++    udp = proto(sport=s_port, dport=d_port)
++    payload = 'helloworld'
++    pkt = eth/ip/udp/payload
++    return bytes(pkt)
++
++def get_packet_from_file(path):
++    f = open(path)
++    packets = []
++    lines = []
++    for _ in range(rule_number):
++	    lines.append(f.readline())
++    f.close()
++    for i in range(packet_number):
++        line = lines[i*(rule_number/packet_number)]
++        head = list(map(int,line.split()))
++        packet = gen_packet(*head[0:5])
++        packets.append(packet)
++    return packets
++
++
++def get_rule_from_line(line):
++    L = list(line[1:].split())
++    sip = L[0]
++    dip = L[1]
++    sport_b, sport_e = int(L[2]), int(L[4])
++    dport_b, dport_e = int(L[5]), int(L[7])
++    prot , protmask = map(eval,L[8].split('/'))
++    prot_b = prot & protmask
++    prot_e = prot_b + (0xff ^ protmask)
++    return {'src_ip': sip,
++            'dst_ip': dip,
++            'src_port_b': sport_b,
++            'src_port_e': sport_e,
++            'dst_port_b': dport_b,
++            'dst_port_e': dport_e,
++            'prot_b': prot_b,
++            'prot_e': prot_e,
++			'drop': False}
++
++
++def get_rule_from_file(path):
++    f = open(path)
++    rule_array = []
++    while True:
++        line = f.readline()
++        if not line:
++            break
++        rule = get_rule_from_line(line)
++        rule_array.append(rule)
++    f.close()
++    return rule_array
++
++def look_rule_number():
++    s = list(os.walk("../../data"))[0][2][0]
++    if s.endswith(".rule"):
++        return int(s[5:s.find(".rule")])
++    elif s.endswith(".trace"):
++        return int(s[5:s.rfind("_")])
++    else:
++        Assert(False)
++    
++        
++
++rule_number = look_rule_number()
++packet_number = 32
++
++fw::PC_ACL(rules=get_rule_from_file("../../data/rule_{0}.rule".format(rule_number)))
++
++packets = get_packet_from_file("../../data/rule_{0}_1.trace".format(rule_number))
++
++
++Source() -> Rewrite(templates=packets) -> fw -> Sink()
+diff --git a/bessctl/conf/pc_dpdk.bess b/bessctl/conf/pc_dpdk.bess
+new file mode 100644
+index 00000000..8774aab0
+--- /dev/null
++++ b/bessctl/conf/pc_dpdk.bess
+@@ -0,0 +1,94 @@
++import scapy.all as scapy
++import struct
++import socket
++import random
++import os
++
++_map_proto = {0x06:scapy.TCP,0x17:scapy.UDP}
++
++def map_proto(proto):
++    if proto in _map_proto.keys():
++        return _map_proto[proto]
++    else:
++        return scapy.TCP
++
++
++def gen_packet(src_ip, dst_ip, s_port, d_port, proto):
++    # we don't care ether
++    eth = scapy.Ether(src='02:1e:67:9f:4d:ae', dst='06:16:3e:1b:72:32')
++    proto = map_proto(proto)
++    src_ip = socket.inet_ntoa(struct.pack('I',socket.htonl(src_ip)))
++    dst_ip = socket.inet_ntoa(struct.pack('I',socket.htonl(dst_ip)))
++    ip = scapy.IP(src=src_ip, dst=dst_ip)
++    udp = proto(sport=s_port, dport=d_port)
++    payload = 'helloworld'
++    pkt = eth/ip/udp/payload
++    return bytes(pkt)
++
++def get_packet_from_file(path):
++    f = open(path)
++    packets = []
++    lines = []
++    for _ in range(rule_number):
++	    lines.append(f.readline())
++    f.close()
++    for i in range(packet_number):
++        line = lines[i*(rule_number/packet_number)]
++        head = list(map(int,line.split()))
++        packet = gen_packet(*head[0:5])
++        packets.append(packet)
++    return packets
++
++
++def get_rule_from_line(line):
++    L = list(line[1:].split())
++    sip = L[0]
++    dip = L[1]
++    sport_b, sport_e = int(L[2]), int(L[4])
++    dport_b, dport_e = int(L[5]), int(L[7])
++    prot , protmask = map(eval,L[8].split('/'))
++    prot_b = prot & protmask
++    prot_e = prot_b + (0xff ^ protmask)
++    return {'src_ip': sip,
++            'dst_ip': dip,
++            'src_port_b': sport_b,
++            'src_port_e': sport_e,
++            'dst_port_b': dport_b,
++            'dst_port_e': dport_e,
++            'prot_b': prot_b,
++            'prot_e': prot_e,
++			'drop': False}
++
++
++def get_rule_from_file(path):
++    f = open(path)
++    rule_array = []
++    while True:
++        line = f.readline()
++        if not line:
++            break
++        rule = get_rule_from_line(line)
++        rule_array.append(rule)
++    f.close()
++    return rule_array
++
++def look_rule_number():
++    s = list(os.walk("../../data"))[0][2][0]
++    if s.endswith(".rule"):
++        return int(s[5:s.find(".rule")])
++    elif s.endswith(".trace"):
++        return int(s[5:s.rfind("_")])
++    else:
++        Assert(False)
++    
++        
++
++rule_number = look_rule_number()
++packet_number = 32
++
++fw::PC_DPDK(rules=get_rule_from_file("../../data/rule_{0}.rule".format(rule_number)))
++
++packets = get_packet_from_file("../../data/rule_{0}_1.trace".format(rule_number))
++
++
++Source() -> Rewrite(templates=packets) -> fw -> Sink()
+diff --git a/core/modules/pc_acl.cc b/core/modules/pc_acl.cc
+new file mode 100644
+index 00000000..75a173f7
+--- /dev/null
++++ b/core/modules/pc_acl.cc
+@@ -0,0 +1,75 @@
++#include "pc_acl.h"
++
++#include "../utils/ether.h"
++#include "../utils/ip.h"
++#include "../utils/udp.h"
++
++const Commands PC_ACL::cmds = {
++    {"add", "PC_ACLArg", MODULE_CMD_FUNC(&PC_ACL::CommandAdd),
++     Command::THREAD_UNSAFE},
++    {"clear", "EmptyArg", MODULE_CMD_FUNC(&PC_ACL::CommandClear),
++     Command::THREAD_UNSAFE}};
++
++CommandResponse PC_ACL::Init(const bess::pb::PC_ACLArg &arg) {
++  printf("%d\n",arg.rules_size());
++  for (const auto &rule : arg.rules()) {
++    ACLRule new_rule = {
++        .src_ip = Ipv4Prefix(rule.src_ip()),
++        .dst_ip = Ipv4Prefix(rule.dst_ip()),
++        .src_port_b = be16_t(static_cast<uint16_t>(rule.src_port_b())),
++        .src_port_e = be16_t(static_cast<uint16_t>(rule.src_port_e())),
++        .dst_port_b = be16_t(static_cast<uint16_t>(rule.dst_port_b())),
++        .dst_port_e = be16_t(static_cast<uint16_t>(rule.dst_port_e())),
++        .prot_b = static_cast<uint8_t>(rule.prot_b()),
++        .prot_e = static_cast<uint8_t>(rule.prot_e()),
++		.drop = rule.drop()};
++    rules_.push_back(new_rule);
++  }
++  return CommandSuccess();
++}
++
++CommandResponse PC_ACL::CommandAdd(const bess::pb::PC_ACLArg &arg) {
++  Init(arg);
++  return CommandSuccess();
++}
++
++CommandResponse PC_ACL::CommandClear(const bess::pb::EmptyArg &) {
++  rules_.clear();
++  return CommandSuccess();
++}
++
++void PC_ACL::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
++  using bess::utils::Ethernet;
++  using bess::utils::Ipv4;
++  using bess::utils::Udp;
++
++  gate_idx_t incoming_gate = ctx->current_igate;
++
++  int cnt = batch->cnt();
++  for (int i = 0; i < cnt; i++) {
++    bess::Packet *pkt = batch->pkts()[i];
++
++    Ethernet *eth = pkt->head_data<Ethernet *>();
++    Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
++    size_t ip_bytes = ip->header_length << 2;
++    Udp *udp =
++        reinterpret_cast<Udp *>(reinterpret_cast<uint8_t *>(ip) + ip_bytes);
++
++    bool emitted = false;
++    for (const auto &rule : rules_) {
++      if (rule.Match(ip->src, ip->dst, udp->src_port, udp->dst_port, ip->protocol)) {
++        if (!rule.drop) {
++          emitted = true;
++          EmitPacket(ctx, pkt, incoming_gate);
++        }
++        break;  // Stop matching other rules
++      }
++    }
++
++    if (!emitted) {
++      DropPacket(ctx, pkt);
++    }
++  }
++}
++
++ADD_MODULE(PC_ACL, "pc_acl", "ACL module with five field")
+diff --git a/core/modules/pc_acl.h b/core/modules/pc_acl.h
+new file mode 100644
+index 00000000..e447de99
+--- /dev/null
++++ b/core/modules/pc_acl.h
+@@ -0,0 +1,47 @@
++#ifndef BESS_MODULES_PC_ACL_H_
++#define BESS_MODULES_PC_ACL_H_
++
++#include <vector>
++
++#include "../module.h"
++#include "../pb/module_msg.pb.h"
++#include "../utils/ip.h"
++
++using bess::utils::be16_t;
++using bess::utils::be32_t;
++using bess::utils::Ipv4Prefix;
++
++class PC_ACL final : public Module {
++ public:
++  struct ACLRule {
++    bool Match(be32_t sip, be32_t dip, be16_t sport, be16_t dport, uint8_t prot) const {
++      return src_ip.Match(sip) && dst_ip.Match(dip) &&
++             sport >= src_port_b && sport <= src_port_e &&
++             dport >= dst_port_b && dport <= dst_port_e &&
++			 prot >= prot_b && prot <= prot_e;
++    }
++
++    Ipv4Prefix src_ip;
++    Ipv4Prefix dst_ip;
++	be16_t src_port_b,src_port_e;
++    be16_t dst_port_b,dst_port_e;
++	uint8_t prot_b,prot_e;
++    bool drop;
++  };
++
++  static const Commands cmds;
++
++  PC_ACL() : Module() { max_allowed_workers_ = Worker::kMaxWorkers; }
++
++  CommandResponse Init(const bess::pb::PC_ACLArg &arg);
++
++  void ProcessBatch(Context *ctx, bess::PacketBatch *batch) override;
++
++  CommandResponse CommandAdd(const bess::pb::PC_ACLArg &arg);
++  CommandResponse CommandClear(const bess::pb::EmptyArg &arg);
++
++ private:
++  std::vector<ACLRule> rules_;
++};
++
++#endif  // BESS_MODULES_PC_ACL_H_
+diff --git a/core/modules/pc_dpdk.cc b/core/modules/pc_dpdk.cc
+new file mode 100644
+index 00000000..5eef3c7e
+--- /dev/null
++++ b/core/modules/pc_dpdk.cc
+@@ -0,0 +1,112 @@
++#include "pc_dpdk.h"
++
++#include "../utils/ether.h"
++#include "../utils/ip.h"
++#include "../utils/udp.h"
++
++#include <arpa/inet.h>
++
++const Commands PC_DPDK::cmds = {
++    {"add", "PC_DPDKArg", MODULE_CMD_FUNC(&PC_DPDK::CommandAdd),
++     Command::THREAD_UNSAFE},
++    {"clear", "EmptyArg", MODULE_CMD_FUNC(&PC_DPDK::CommandClear),
++     Command::THREAD_UNSAFE}};
++
++CommandResponse PC_DPDK::Init(const bess::pb::PC_DPDKArg &arg) {
++  if ((acx = rte_acl_create(&prm)) == NULL)
++    return CommandFailure(EINVAL,"context create failure");
++  int total = arg.rules_size();
++  int prio = total;
++  uint32_t i = 0;
++
++  struct acl_ipv4_rule rules[total];
++
++  for (const auto &rule : arg.rules()) {
++    std::string src_ip = rule.src_ip();
++	size_t pt = src_ip.find('/');
++    uint32_t src_addr = inet_addr(src_ip.substr(0,pt).c_str());
++    uint8_t src_masklen = (uint8_t)std::stoi(src_ip.substr(pt+1));
++    
++    std::string dst_ip = rule.dst_ip();
++	pt = dst_ip.find('/');
++    uint32_t dst_addr = inet_addr(dst_ip.substr(0,pt).c_str());
++    uint8_t dst_masklen = (uint8_t)std::stoi(dst_ip.substr(pt+1));
++    acl_ipv4_rule temp = {
++      .data = {.category_mask = 1, .priority = prio, .userdata = i + 1},
++	  .field = {
++		/*   protocal  */
++      {.value={.u32=rule.prot_b()},.mask_range={.u32=rule.prot_e()}},
++        /* source IPv4 */
++      {.value={.u32=ntohl(src_addr)},.mask_range={.u8=src_masklen}},
++	    /* destination IPv4 */
++      {.value={.u32=ntohl(dst_addr)},.mask_range={.u8=dst_masklen}},
++        /* source port */
++      {.value={.u32=rule.src_port_b()},.mask_range={.u32=rule.src_port_e()}},
++        /* destination port */ 
++      {.value={.u32=rule.dst_port_b()},.mask_range={.u32=rule.dst_port_e()}}}
++    };
++
++	rules[i] = temp;
++	i++,prio--;
++  }
++  int ret = rte_acl_add_rules(acx, reinterpret_cast<rte_acl_rule *>(rules),RTE_DIM(rules));
++  if (ret != 0)
++    return CommandFailure(EINVAL,"error at adding ACL rules.");
++  
++
++  cfg.num_categories = 1;
++  cfg.num_fields = RTE_DIM(ipv4_defs);
++  memcpy(cfg.defs, ipv4_defs, sizeof (ipv4_defs));
++  ret = rte_acl_build(acx, &cfg);
++  if (ret != 0)
++    return CommandFailure(EINVAL,"error at build runtime structures for ACL context.");
++  return CommandSuccess();
++}
++
++
++CommandResponse PC_DPDK::CommandAdd(const bess::pb::PC_DPDKArg &arg) {
++  Init(arg);
++  return CommandSuccess();
++}
++
++
++CommandResponse PC_DPDK::CommandClear(const bess::pb::EmptyArg &) {
++  rte_acl_reset_rules(acx);
++  return CommandSuccess();
++}
++
++void PC_DPDK::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
++  using bess::utils::Ethernet;
++  using bess::utils::Ipv4;
++  using bess::utils::Udp;
++
++  gate_idx_t incoming_gate = ctx->current_igate;
++
++  int cnt = batch->cnt();
++  uint32_t result[cnt];
++  ipv4_5tuple data[cnt];
++  uint8_t *datap[cnt];
++  for (int i = 0; i < cnt; i++) {
++    bess::Packet *pkt = batch->pkts()[i];
++
++    Ethernet *eth = pkt->head_data<Ethernet *>();
++    Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
++    size_t ip_bytes = ip->header_length << 2;
++    Udp *udp = reinterpret_cast<Udp *>(reinterpret_cast<uint8_t *>(ip) + ip_bytes);
++
++    datap[i] = reinterpret_cast<uint8_t*>(&data[i]);
++	data[i].proto = ip->protocol;
++	data[i].ip_src = ip->src.raw_value();
++	data[i].ip_dst = ip->dst.raw_value();
++    data[i].port_src = udp->src_port.raw_value();
++	data[i].port_dst = udp->dst_port.raw_value();
++  }
++  rte_acl_classify(acx,(const uint8_t **)datap, result, cnt, 1);
++  for (int i = 0;i < cnt; i++) {
++    bess::Packet *pkt = batch->pkts()[i];
++	if (result[i] == 0) DropPacket(ctx,pkt);
++	else EmitPacket(ctx,pkt,incoming_gate);
++  }
++}
++
++ADD_MODULE(PC_DPDK, "pc_dpdk", "DPDK ACL module")
+diff --git a/core/modules/pc_dpdk.h b/core/modules/pc_dpdk.h
+new file mode 100644
+index 00000000..fcb0e7e6
+--- /dev/null
++++ b/core/modules/pc_dpdk.h
+@@ -0,0 +1,102 @@
++#ifndef BESS_MODULES_PC_DPDK_H_
++#define BESS_MODULES_PC_DPDK_H_
++
++#include <cstring>
++#include <iostream>
++#include <rte_config.h>
++#include <rte_acl.h>
++#include <rte_eal.h>
++#include "../module.h"
++#include "../pb/module_msg.pb.h"
++#include "../utils/ip.h"
++
++using bess::utils::be16_t;
++using bess::utils::be32_t;
++using bess::utils::Ipv4Prefix;
++
++struct ipv4_5tuple {
++  uint8_t proto;
++  uint32_t ip_src;
++  uint32_t ip_dst;
++  uint16_t port_src;
++  uint16_t port_dst;
++};
++
++struct rte_acl_field_def ipv4_defs[5] = {
++  /* first input field protocal - always one byte long. */
++  {
++    .type = RTE_ACL_FIELD_TYPE_RANGE,
++    .size = sizeof (uint8_t),
++    .field_index = 0,
++    .input_index = 0,
++    .offset = offsetof (struct ipv4_5tuple, proto),
++  },
++  /* next input field (IPv4 src address) - 4 consecutive bytes. */
++  {
++    .type = RTE_ACL_FIELD_TYPE_MASK,
++    .size = sizeof (uint32_t),
++    .field_index = 1,
++    .input_index = 1,
++    .offset = offsetof (struct ipv4_5tuple, ip_src),
++  },
++  /* next input field (IPv4 dst address) - 4 consecutive bytes. */
++  {
++    .type = RTE_ACL_FIELD_TYPE_MASK,
++    .size = sizeof (uint32_t),
++    .field_index = 2,
++    .input_index = 2,
++    .offset = offsetof (struct ipv4_5tuple, ip_dst),
++  },
++  /*
++   * Next 2 fields (src & dst ports) form 4 consecutive bytes.
++   * They share the same input index.
++   */
++  {
++    .type = RTE_ACL_FIELD_TYPE_RANGE,
++    .size = sizeof (uint16_t),
++    .field_index = 3,
++    .input_index = 3,
++    .offset = offsetof (struct ipv4_5tuple, port_src),
++  },
++  {
++    .type = RTE_ACL_FIELD_TYPE_RANGE,
++    .size = sizeof (uint16_t),
++    .field_index = 4,
++    .input_index = 3,
++    .offset = offsetof (struct ipv4_5tuple, port_dst),
++  },
++};
++
++/* define a structure for the rule with up to 5 fields. */
++
++RTE_ACL_RULE_DEF(acl_ipv4_rule, RTE_DIM(ipv4_defs));
++
++/* AC context creation parameters. */
++
++struct rte_acl_param prm = {
++  .name = "ACL_DPDK",
++  .socket_id = SOCKET_ID_ANY,
++  .rule_size = RTE_ACL_RULE_SZ(RTE_DIM(ipv4_defs)),
++  .max_rule_num = 50000, /* maximum number of rules in the AC context. */
++};
++
++class PC_DPDK final : public Module {
++ public:
++  static const Commands cmds;
++
++  PC_DPDK() : Module() { max_allowed_workers_ = Worker::kMaxWorkers; }
++
++  CommandResponse Init(const bess::pb::PC_DPDKArg &arg);
++
++  void ProcessBatch(Context *ctx, bess::PacketBatch *batch) override;
++
++  CommandResponse CommandAdd(const bess::pb::PC_DPDKArg &arg);
++  CommandResponse CommandClear(const bess::pb::EmptyArg &arg);
++
++ private:
++  struct rte_acl_ctx * acx;
++  struct rte_acl_config cfg;
++  
++};
++
++#endif  // BESS_MODULES_PC_DPDK_H_
+diff --git a/protobuf/module_msg.proto b/protobuf/module_msg.proto
+index ef901a3e..e419c762 100644
+--- a/protobuf/module_msg.proto
++++ b/protobuf/module_msg.proto
+@@ -424,6 +424,39 @@ message ACLArg {
+   repeated Rule rules = 1; ///A list of ACL rules.
+ }
+ 
++message PC_ACLArg {
++  message Rule {
++    string src_ip = 1;    /// Source IP block in CIDR. Wildcard if "".
++    string dst_ip = 2;    /// Destination IP block in CIDR. Wildcard if "".
++    bool drop = 3;        /// Drop matched packets if true, forward if false. By default ACL drops all traffic.
++	uint32 src_port_b = 4;
++	uint32 src_port_e = 5;
++	uint32 dst_port_b = 6;
++	uint32 dst_port_e = 7;
++	uint32 prot_b = 8;
++	uint32 prot_e = 9;
++  }
++  repeated Rule rules = 1; ///A list of ACL rules.
++}
++
++
++//They are the same
++message PC_DPDKArg {
++  message Rule {
++    string src_ip = 1;    /// Source IP block in CIDR. Wildcard if "".
++    string dst_ip = 2;    /// Destination IP block in CIDR. Wildcard if "".
++    bool drop = 3;        /// Drop matched packets if true, forward if false. By default ACL drops all traffic.
++	uint32 src_port_b = 4;
++	uint32 src_port_e = 5;
++	uint32 dst_port_b = 6;
++	uint32 dst_port_e = 7;
++	uint32 prot_b = 8;
++	uint32 prot_e = 9;
++  }
++  repeated Rule rules = 1; ///A list of ACL rules.
++}
++
++
+ /**
+  * The BPF module is an access control module that sends packets out on a particular gate based on whether they match a BPF filter.
+  *
+-- 
+2.17.1
+
