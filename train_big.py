@@ -7,6 +7,7 @@ import torch.utils.data
 from torch.autograd import Variable
 from tqdm import tqdm
 from linar_tc import linar_classifier
+from Rule_Mapper import Rule_Mapper
 
 dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -74,21 +75,20 @@ class classifier(tc.nn.Module):
         
         return x
 
-def reading(name):
-    f = open(name,"r")
-    A = np.array(list(map(float,f.read().split()))).reshape((-1,14))
-    x = tc.tensor(A[:, 0:13].astype(np.float32), device=dev)
-    y = tc.tensor(A[:, 13].astype(np.long), device=dev)
-    return x, y
 
 if __name__ == "__main__":
-    rule_number = 100000 # 200-classification
-    
-    model = classifier(13,rule_number//500).cuda()#500 per subset
+    rule_number = 1000 # rule-number
+    num_group = 50  #first nn output width
+    model = classifier(13,num_group).cuda()#500 per subset
     classifier = linar_classifier("data/rule_{0}.rule".format(rule_number))
     loss_fn = tc.nn.CrossEntropyLoss()
+    mode="hicut" # alter here to change modes. supported modes include "hicuts", "efficuts" and "notree".
     
-    mode="hicuts" # alter here to change modes. supported modes include "hicuts", "efficuts" and "notree".
+    Mapper = Rule_Mapper(mode=mode,
+                         path="data/rule_{0}.rule".format(rule_number),
+                         num_group = num_group)
+    
+    mark = Mapper.mark
     
     def train_on_file(st,ed,lr):
         optimizer = tc.optim.Adam(model.parameters(),lr=lr)
@@ -97,11 +97,12 @@ if __name__ == "__main__":
             train_loss = 0.0
             train_acc = 0.0
             
-            x, y = reading("data/rule_{0}_{1}_coarse_labeled_".format(rule_number, i)+mode+".trace")
-            #x, _ = classifier.preprocess("data/rule_{0}_{1}.trace".format(rule_number, 1))
-            #y = classifier.call_on_batch(x, 256)
-            #x, _ = preprocess("data/rule_{0}_{1}.trace".format(rule_number, 1))
-            # print(x.shape,y.shape)
+            x, _ = classifier.preprocess("data/rule_{0}_{1}.trace".format(rule_number, i))
+            y = classifier.call_on_batch(x, 256)
+            #switch rule label to group label
+            y = tc.tensor(mark[y.cpu()],dtype=tc.int64,device=dev)
+            x, _ = preprocess("data/rule_{0}_{1}.trace".format(rule_number, i))
+
             MyDataSet = HeaderData(x,y)
             loader = tc.utils.data.DataLoader(MyDataSet,
                                               batch_size=256,
@@ -111,7 +112,6 @@ if __name__ == "__main__":
                 def closure():
                     nonlocal train_loss,train_acc
                     optimizer.zero_grad()
-                    # print(batchx.shape)
                     output = model(batchx)
                     loss = loss_fn(output,batchy)
                     train_loss += loss.item()
@@ -123,28 +123,26 @@ if __name__ == "__main__":
             print('file {:d} Train Loss: {:.6f}, Acc: {:.6f}'.format(i,
                   train_loss/x.shape[0],
                   train_acc/x.shape[0]))
-            torch.save(model.state_dict(), "model.pth")
+            #torch.save(model.state_dict(), "model.pth")
 
     def test(st,ed):
-        # optimizer = tc.optim.Adam(model.parameters(),lr=lr)
         for i in range(st,ed):
             
             train_loss = 0.0
             train_acc = 0.0
             
-            x, y = reading("data/rule_{0}_{1}_coarse_labeled_".format(rule_number, i)+mode+".trace")
-            #x, _ = classifier.preprocess("data/rule_{0}_{1}.trace".format(rule_number, 1))
-            #y = classifier.call_on_batch(x, 256)
-            #x, _ = preprocess("data/rule_{0}_{1}.trace".format(rule_number, 1))
-            # print(x.shape,y.shape)
+            x, _ = classifier.preprocess("data/rule_{0}_{1}.trace".format(rule_number, i))
+            y = classifier.call_on_batch(x, 256)
+            #switch rule label to group label
+            y = tc.tensor(mark[y.cpu()],dtype=tc.int64,device=dev)
+            x, _ = preprocess("data/rule_{0}_{1}.trace".format(rule_number, i))
+            
             MyDataSet = HeaderData(x,y)
             loader = tc.utils.data.DataLoader(MyDataSet,batch_size=256,shuffle=True)
 
             print("testing:",i)
 
             for batchx,batchy in tqdm(loader):
-                batchx,batchy = Variable(batchx),Variable(batchy)
-                #print(batchx.shape)
                 output = model(batchx)
                 loss = loss_fn(output,batchy)
                 train_loss += loss.item()
