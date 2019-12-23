@@ -55,9 +55,9 @@ class HeaderData(tc.utils.data.Dataset):
         
 
 
-class classifier(tc.nn.Module):
+class PC_Module(tc.nn.Module):
     def __init__(self,in_dim,rule_number):
-        super(classifier,self).__init__()
+        super(PC_Module,self).__init__()
         self.fc0 = tc.nn.Linear(in_dim,512) # 128 -- 64 -- 32 99.7%
         self.fc1 = tc.nn.Linear(512,256)
         self.fc2 = tc.nn.Linear(256,256)
@@ -77,9 +77,9 @@ class classifier(tc.nn.Module):
 
 
 if __name__ == "__main__":
-    rule_number = 1000 # rule-number
-    num_group = 50  #first nn output width
-    model = classifier(13,num_group).cuda()#500 per subset
+    rule_number = 10000 # rule-number
+    num_group = 256  #first nn output width
+    model = PC_Module(13,num_group).cuda()#500 per subset
     classifier = linar_classifier("data/rule_{0}.rule".format(rule_number))
     loss_fn = tc.nn.CrossEntropyLoss()
     mode="hicut" # alter here to change modes. supported modes include "hicuts", "efficuts" and "notree".
@@ -157,12 +157,6 @@ if __name__ == "__main__":
 
 
     # currently train on 12 trace files andtest on 3 files.
-    for i in range(5):
-        train_on_file(1,13,1e-2)
-        test(13,16)
-    for i in range(5):
-        train_on_file(1,13,1e-3)
-        test(13,16)
-    for i in range(5):
-        train_on_file(1,13,1e-4)
-        test(13,16)
+    train_on_file(1,10,1e-2)
+#    train_on_file(10,30,1e-3)
+#    train_on_file(30,50,1e-4)
