@@ -79,10 +79,10 @@ class PC_Module(tc.nn.Module):
 if __name__ == "__main__":
     rule_number = 10000 # rule-number
     num_group = 256  #first nn output width
-    model = PC_Module(13,num_group).cuda()#500 per subset
+    model = PC_Module(13,num_group).cuda()
     classifier = linar_classifier("data/rule_{0}.rule".format(rule_number))
     loss_fn = tc.nn.CrossEntropyLoss()
-    mode="hicut" # alter here to change modes. supported modes include "hicuts", "efficuts" and "notree".
+    mode="hicut" # alter here to change modes. supported modes include "hicut", "efficut" and "notree".
     
     Mapper = Rule_Mapper(mode=mode,
                          path="data/rule_{0}.rule".format(rule_number),
@@ -90,12 +90,9 @@ if __name__ == "__main__":
     
     mark = Mapper.mark
     
-    def train_on_file(st,ed,lr):
+    def train_on_file(st,ed,lr=1e-3,repeat=1):
         optimizer = tc.optim.Adam(model.parameters(),lr=lr)
         for i in range(st,ed):
-            
-            train_loss = 0.0
-            train_acc = 0.0
             
             x, _ = classifier.preprocess("data/rule_{0}_{1}.trace".format(rule_number, i))
             y = classifier.call_on_batch(x, 256)
@@ -107,22 +104,25 @@ if __name__ == "__main__":
             loader = tc.utils.data.DataLoader(MyDataSet,
                                               batch_size=256,
                                               shuffle=True)
-            for batchx,batchy in tqdm(loader):
-                batchx,batchy = Variable(batchx),Variable(batchy)
-                def closure():
-                    nonlocal train_loss,train_acc
-                    optimizer.zero_grad()
-                    output = model(batchx)
-                    loss = loss_fn(output,batchy)
-                    train_loss += loss.item()
-                    label = torch.max(output, dim=1)[1]
-                    train_acc += (label==batchy).sum().item()
-                    loss.backward()
-                    return loss
-                optimizer.step(closure)
-            print('file {:d} Train Loss: {:.6f}, Acc: {:.6f}'.format(i,
-                  train_loss/x.shape[0],
-                  train_acc/x.shape[0]))
+            for _ in range(repeat):
+                train_loss = 0.0
+                train_acc = 0.0
+                for batchx,batchy in tqdm(loader):
+                    batchx,batchy = Variable(batchx),Variable(batchy)
+                    def closure():
+                        nonlocal train_loss,train_acc
+                        optimizer.zero_grad()
+                        output = model(batchx)
+                        loss = loss_fn(output,batchy)
+                        train_loss += loss.item()
+                        label = torch.max(output, dim=1)[1]
+                        train_acc += (label==batchy).sum().item()
+                        loss.backward()
+                        return loss
+                    optimizer.step(closure)
+                print('file {:d} Train Loss: {:.6f}, Acc: {:.6f}'.format(i,
+                      train_loss/x.shape[0],
+                      train_acc/x.shape[0]))
             #torch.save(model.state_dict(), "model.pth")
 
     def test(st,ed):
@@ -157,6 +157,6 @@ if __name__ == "__main__":
 
 
     # currently train on 12 trace files andtest on 3 files.
-    train_on_file(1,10,1e-2)
-#    train_on_file(10,30,1e-3)
-#    train_on_file(30,50,1e-4)
+    train_on_file(1,10,1e-2,3)
+    train_on_file(10,30,1e-3,3)
+    train_on_file(30,50,1e-4,3)
