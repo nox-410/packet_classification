@@ -58,7 +58,7 @@ class linar_classifier(tc.nn.Module):
     def __init__(self,path):
         super(linar_classifier, self).__init__()
         if type(path) is np.ndarray:
-            rule_set = rule
+            rule_set = path
         else:    
             rule_set = Init_rule_set(path)
         self.rule = tc.tensor(rule_set,
@@ -110,18 +110,20 @@ class linar_classifier(tc.nn.Module):
 
     def do_split(self,mark):
         result = [[] for i in range(mark.max()+1)]
-        for i,rule in enumerate(self.rule):
+        for i,rule in enumerate(self.rule.tolist()):
             index = mark[i]
             if index == 0:
                 continue
             result[index].append(rule)
         for i in range(result.__len__()):
             if result[i] == []:
-                continue
+                result[i] = None
             else:
-                result[i] = linar_classifier(result[i])
-            return result
-            
+                result[i] = linar_classifier(np.array(result[i]))
+        return result
+   
+    def save_model(self,path):
+        tc.jit.script(self).save(path)
 
 
 

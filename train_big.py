@@ -74,7 +74,16 @@ class PC_Module(tc.nn.Module):
         #should use logic here
         
         return x
+    
+    def save_model(self,path):
+        tc.jit.script(self).save(path)
 
+def save_everything():
+    l_models = classifier.do_split(mark)
+    model.save_model("model/first_layer.pt")
+    for i,l_model in enumerate(l_models):
+        if l_model:
+            l_model.save_model("model/second_layer_%d.pt" % i)
 
 if __name__ == "__main__":
     rule_number = 1000 # rule-number
@@ -122,7 +131,7 @@ if __name__ == "__main__":
             print('file {:d} Train Loss: {:.6f}, Acc: {:.6f}'.format(i,
                   train_loss/x.shape[0],
                   train_acc/x.shape[0]))
-            tc.jit.script(model).save("model/first_layer.pt")
+            model.save_model("model/first_layer.pt")
 
     def test(st,ed):
         for i in range(st,ed):
