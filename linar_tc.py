@@ -57,7 +57,10 @@ def Init_rule_set(path):
 class linar_classifier(tc.nn.Module):
     def __init__(self,path):
         super(linar_classifier, self).__init__()
-        rule_set = Init_rule_set(path)
+        if type(path) is np.ndarray:
+            rule_set = rule
+        else:    
+            rule_set = Init_rule_set(path)
         self.rule = tc.tensor(rule_set,
                               dtype=tc.int64,
                               device="cuda")
@@ -105,7 +108,20 @@ class linar_classifier(tc.nn.Module):
             i = i + batch
         return y
 
-
+    def do_split(self,mark):
+        result = [[] for i in range(mark.max()+1)]
+        for i,rule in enumerate(self.rule):
+            index = mark[i]
+            if index == 0:
+                continue
+            result[index].append(rule)
+        for i in range(result.__len__()):
+            if result[i] == []:
+                continue
+            else:
+                result[i] = linar_classifier(result[i])
+            return result
+            
 
 
 
