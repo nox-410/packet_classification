@@ -1,0 +1,94 @@
+import scapy.all as scapy
+import struct
+import socket
+import random
+import os
+
+_map_proto = {0x06:scapy.TCP,0x17:scapy.UDP}
+
+def map_proto(proto):
+    if proto in _map_proto.keys():
+        return _map_proto[proto]
+    else:
+        return scapy.TCP
+
+
+def gen_packet(src_ip, dst_ip, s_port, d_port, proto):
+    # we don't care ether
+    eth = scapy.Ether(src='02:1e:67:9f:4d:ae', dst='06:16:3e:1b:72:32')
+    proto = map_proto(proto)
+    src_ip = socket.inet_ntoa(struct.pack('I',socket.htonl(src_ip)))
+    dst_ip = socket.inet_ntoa(struct.pack('I',socket.htonl(dst_ip)))
+    ip = scapy.IP(src=src_ip, dst=dst_ip)
+    udp = proto(sport=s_port, dport=d_port)
+    payload = 'helloworld'
+    pkt = eth/ip/udp/payload
+    return bytes(pkt)
+
+def get_packet_from_file(path):
+    f = open(path)
+    packets = []
+    lines = []
+    for _ in range(rule_number):
+        lines.append(f.readline())
+    f.close()
+    for i in range(packet_number):
+        line = lines[i*(rule_number/packet_number)]
+        head = list(map(int,line.split()))
+        packet = gen_packet(*head[0:5])
+        packets.append(packet)
+    return packets
+
+
+def get_rule_from_line(line):
+    L = list(line[1:].split())
+    sip = L[0]
+    dip = L[1]
+    sport_b, sport_e = int(L[2]), int(L[4])
+    dport_b, dport_e = int(L[5]), int(L[7])
+    prot , protmask = map(eval,L[8].split('/'))
+    prot_b = prot & protmask
+    prot_e = prot_b + (0xff ^ protmask)
+    return {'src_ip': sip,
+            'dst_ip': dip,
+            'src_port_b': sport_b,
+            'src_port_e': sport_e,
+            'dst_port_b': dport_b,
+            'dst_port_e': dport_e,
+            'prot_b': prot_b,
+            'prot_e': prot_e,
+            'drop': False}
+
+
+def get_rule_from_file(path):
+    f = open(path)
+    rule_array = []
+    while True:
+        line = f.readline()
+        if not line:
+            break
+        rule = get_rule_from_line(line)
+        rule_array.append(rule)
+    f.close()
+    return rule_array
+
+def look_rule_number():
+    s = list(os.walk("../../data"))[0][2][0]
+    if s.endswith(".rule"):
+        return int(s[5:s.find(".rule")])
+    elif s.endswith(".trace"):
+        return int(s[5:s.rfind("_")])
+    else:
+        Assert(False)
+
+
+
+rule_number = look_rule_number()
+packet_number = 32
+
+fw::PC_DPDK(rules=get_rule_from_file("../../data/rule_{0}.rule".format(rule_number)))
+
+packets = get_packet_from_file("../../data/rule_{0}_1.trace".format(rule_number))
+
+
+Source() -> Rewrite(templates=packets) -> fw -> Sink()

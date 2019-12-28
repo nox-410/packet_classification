@@ -1,0 +1,69 @@
+From d4d9122125d54a0e92966c7c12823397cb94b8a2 Mon Sep 17 00:00:00 2001
+From: SYN <1700012728@pku.edu.cn>
+Date: Fri, 27 Dec 2019 19:45:42 -0800
+Subject: [PATCH] Bess protobuf patch
+
+Signed-off-by: SYN <1700012728@pku.edu.cn>
+---
+ protobuf/module_msg.proto | 38 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 38 insertions(+)
+
+diff --git a/protobuf/module_msg.proto b/protobuf/module_msg.proto
+index ef901a3e..45221edf 100644
+--- a/protobuf/module_msg.proto
++++ b/protobuf/module_msg.proto
+@@ -292,6 +292,11 @@ message DRRMaxFlowQueueSizeArg {
+   uint32 max_queue_size = 1;  /// the max size that any Flows queue can get
+ }
+ 
++message PC_TCArg {
++  string prefix = 1;
++  uint32 width = 2;
++}
++
+ /**
+  * The module PortInc has a function `set_burst(...)` that allows you to specify the
+  * maximum number of packets to be stored in a single PacketBatch released by
+@@ -424,6 +429,39 @@ message ACLArg {
+   repeated Rule rules = 1; ///A list of ACL rules.
+ }
+ 
++message PC_ACLArg {
++  message Rule {
++    string src_ip = 1;    /// Source IP block in CIDR. Wildcard if "".
++    string dst_ip = 2;    /// Destination IP block in CIDR. Wildcard if "".
++    bool drop = 3;        /// Drop matched packets if true, forward if false. By default ACL drops all traffic.
++    uint32 src_port_b = 4;
++    uint32 src_port_e = 5;
++    uint32 dst_port_b = 6;
++    uint32 dst_port_e = 7;
++    uint32 prot_b = 8;
++    uint32 prot_e = 9;
++  }
++  repeated Rule rules = 1; ///A list of ACL rules.
++}
++
++
++//They are the same
++message PC_DPDKArg {
++  message Rule {
++    string src_ip = 1;    /// Source IP block in CIDR. Wildcard if "".
++    string dst_ip = 2;    /// Destination IP block in CIDR. Wildcard if "".
++    bool drop = 3;        /// Drop matched packets if true, forward if false. By default ACL drops all traffic.
++    uint32 src_port_b = 4;
++    uint32 src_port_e = 5;
++    uint32 dst_port_b = 6;
++    uint32 dst_port_e = 7;
++    uint32 prot_b = 8;
++    uint32 prot_e = 9;
++  }
++  repeated Rule rules = 1; ///A list of ACL rules.
++}
++
++
+ /**
+  * The BPF module is an access control module that sends packets out on a particular gate based on whether they match a BPF filter.
+  *
+-- 
+2.17.1
+
