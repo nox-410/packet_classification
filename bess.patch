@@ -1,9 +1,10 @@
 From a798f34088daac68f4a9c93125022b759b408853 Mon Sep 17 00:00:00 2001
 From: SYN <1700012728@pku.edu.cn>
 Date: Sat, 21 Dec 2019 20:38:18 -0800
-Subject: [PATCH] Create patch for bess in packet_classification 1 add module
- pc_acl 2 add module pc_dpdk 3 create script for two modules Signed-off-by:
- SYN <1700012728@pku.edu.cn>
+Subject: [PATCH] Create patch for bess in packet_classification
+ 1 add module pc_acl
+ 2 add module pc_dpdk
+ 3 create script for two modules
 
 ---
  bessctl/conf/pc_acl.bess  |  94 ++++++++++++++++++++++++++++++++
@@ -109,8 +110,8 @@ index 00000000..2953f5a0
 +        return int(s[5:s.rfind("_")])
 +    else:
 +        Assert(False)
-+    
-+        
++
++
 +
 +rule_number = look_rule_number()
 +packet_number = 32
@@ -209,8 +210,8 @@ index 00000000..a9d0ba15
 +        return int(s[5:s.rfind("_")])
 +    else:
 +        Assert(False)
-+    
-+        
++
++
 +
 +rule_number = look_rule_number()
 +packet_number = 32
@@ -388,7 +389,7 @@ index 00000000..5c2bdee9
 +    size_t pt = src_ip.find('/');
 +    uint32_t src_addr = inet_addr(src_ip.substr(0,pt).c_str());
 +    uint8_t src_masklen = (uint8_t)std::stoi(src_ip.substr(pt+1));
-+    
++
 +    std::string dst_ip = rule.dst_ip();
 +    pt = dst_ip.find('/');
 +    uint32_t dst_addr = inet_addr(dst_ip.substr(0,pt).c_str());
@@ -404,7 +405,7 @@ index 00000000..5c2bdee9
 +      {.value={.u32=ntohl(dst_addr)},.mask_range={.u8=dst_masklen}},
 +        /* source port */
 +      {.value={.u32=rule.src_port_b()},.mask_range={.u32=rule.src_port_e()}},
-+        /* destination port */ 
++        /* destination port */
 +      {.value={.u32=rule.dst_port_b()},.mask_range={.u32=rule.dst_port_e()}}}
 +    };
 +
@@ -414,7 +415,7 @@ index 00000000..5c2bdee9
 +  int ret = rte_acl_add_rules(acx, reinterpret_cast<rte_acl_rule *>(rules),RTE_DIM(rules));
 +  if (ret != 0)
 +    return CommandFailure(EINVAL,"error at adding ACL rules.");
-+  
++
 +
 +  cfg.num_categories = 1;
 +  cfg.num_fields = RTE_DIM(ipv4_defs);
@@ -576,7 +577,7 @@ index 00000000..fcb0e7e6
 + private:
 +  struct rte_acl_ctx * acx;
 +  struct rte_acl_config cfg;
-+  
++
 +};
 +
 +#endif  // BESS_MODULES_PC_DPDK_H_
@@ -587,7 +588,7 @@ index ef901a3e..45221edf 100644
 @@ -292,6 +292,11 @@ message DRRMaxFlowQueueSizeArg {
    uint32 max_queue_size = 1;  /// the max size that any Flows queue can get
  }
- 
+
 +message PC_TCArg {
 +  string prefix = 1;
 +  uint32 width = 2;
@@ -599,7 +600,7 @@ index ef901a3e..45221edf 100644
 @@ -424,6 +429,39 @@ message ACLArg {
    repeated Rule rules = 1; ///A list of ACL rules.
  }
- 
+
 +message PC_ACLArg {
 +  message Rule {
 +    string src_ip = 1;    /// Source IP block in CIDR. Wildcard if "".
@@ -636,6 +637,6 @@ index ef901a3e..45221edf 100644
  /**
   * The BPF module is an access control module that sends packets out on a particular gate based on whether they match a BPF filter.
   *
--- 
+--
 2.17.1
 
