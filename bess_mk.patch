@@ -1,0 +1,30 @@
+From 6a309181392c7a259d77cddb19f0891275e48a7d Mon Sep 17 00:00:00 2001
+From: SYN <1700012728@pku.edu.cn>
+Date: Fri, 27 Dec 2019 19:19:12 -0800
+Subject: [PATCH] Add makefile support for pytorch
+
+Signed-off-by: SYN <1700012728@pku.edu.cn>
+---
+ core/torch.mk | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+ create mode 100644 core/torch.mk
+
+diff --git a/core/torch.mk b/core/torch.mk
+new file mode 100644
+index 00000000..f3960c57
+--- /dev/null
++++ b/core/torch.mk
+@@ -0,0 +1,10 @@
++#Makefile for pytorch
++
++TORCH_DIR       :=/root/libtorch
++TORCH_LIB       :=$(TORCH_DIR)/lib
++TORCH_INC       :=$(TORCH_DIR)/include $(TORCH_DIR)/include/torch/csrc/api/include
++
++TORCH_CXX_FLAGS :=$(patsubst %,-I %,$(TORCH_INC))
++
++CXXFLAGS        +=$(TORCH_CXX_FLAGS)
++LDFLAGS         +=-L$(TORCH_LIB) -Wl,rpath=$(TORCH_LIB) -ltorch -lc10
+-- 
+2.17.1
+
