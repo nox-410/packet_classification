@@ -1,30 +1,44 @@
-From 6a309181392c7a259d77cddb19f0891275e48a7d Mon Sep 17 00:00:00 2001
+From fe9db7af24e83fd43754af2d13ba504954096c9f Mon Sep 17 00:00:00 2001
 From: SYN <1700012728@pku.edu.cn>
 Date: Fri, 27 Dec 2019 19:19:12 -0800
 Subject: [PATCH] Add makefile support for pytorch
 
 Signed-off-by: SYN <1700012728@pku.edu.cn>
 ---
+ core/Makefile |  2 ++
  core/torch.mk | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ 2 files changed, 12 insertions(+)
  create mode 100644 core/torch.mk
 
+diff --git a/core/Makefile b/core/Makefile
+index 5ab8a150..363a61b9 100644
+--- a/core/Makefile
++++ b/core/Makefile
+@@ -309,6 +309,8 @@ EXEC := bessd
+ 
+ GTEST_DIR := /usr/src/gtest
+ 
++include torch.mk
++
+ .PHONY: all clean tags cscope tests benchmarks protobuf check_plugins_exist
+ 
+ all: $(EXEC) modules tests benchmarks check_plugins_exist
 diff --git a/core/torch.mk b/core/torch.mk
 new file mode 100644
-index 00000000..f3960c57
+index 00000000..380ddf6f
 --- /dev/null
 +++ b/core/torch.mk
 @@ -0,0 +1,10 @@
 +#Makefile for pytorch
 +
-+TORCH_DIR       :=/root/libtorch
++TORCH_DIR       :=$(abspath ../deps/libtorch)
 +TORCH_LIB       :=$(TORCH_DIR)/lib
 +TORCH_INC       :=$(TORCH_DIR)/include $(TORCH_DIR)/include/torch/csrc/api/include
 +
-+TORCH_CXX_FLAGS :=$(patsubst %,-I %,$(TORCH_INC))
++TORCH_CXX_FLAGS :=$(patsubst %,-isystem %,$(TORCH_INC))
 +
 +CXXFLAGS        +=$(TORCH_CXX_FLAGS)
-+LDFLAGS         +=-L$(TORCH_LIB) -Wl,rpath=$(TORCH_LIB) -ltorch -lc10
++LDFLAGS         +=-L$(TORCH_LIB) -Wl,-rpath=$(TORCH_LIB) -ltorch -lc10
 -- 
 2.17.1
 
