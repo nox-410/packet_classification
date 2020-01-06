@@ -1,13 +1,16 @@
 #ifndef BESS_MODULES_TCCPU_ACL_H_
 #define BESS_MODULES_TCCPU_ACL_H_
 
-#include <vector>
 #include <torch/script.h>
 #include <torch/torch.h>
 
 #include "../module.h"
 #include "../pb/module_msg.pb.h"
+#include "../utils/ether.h"
 #include "../utils/ip.h"
+#include "../utils/udp.h"
+
+#include <vector>
 
 using bess::utils::be16_t;
 using bess::utils::be32_t;
