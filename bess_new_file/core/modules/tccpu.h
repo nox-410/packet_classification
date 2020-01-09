@@ -11,7 +11,7 @@
 #include "../utils/udp.h"
 
 #include <vector>
-
+#include <fstream>
 using bess::utils::be16_t;
 using bess::utils::be32_t;
 using bess::utils::Ipv4Prefix;
@@ -28,8 +28,14 @@ class TCCPU_ACL final : public Module {
 
   void ProcessBatch(Context *ctx, bess::PacketBatch *batch) override;
   
+ private:
   torch::jit::script::Module model;
 
+  std::ofstream log;
+  
+  int turn;
+  const static int kMod = 1000;
+  double vecs[32*13*kMod];
 
 };
 

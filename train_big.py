@@ -58,18 +58,18 @@ class HeaderData(tc.utils.data.Dataset):
 class PC_Module(tc.nn.Module):
     def __init__(self,in_dim,rule_number):
         super(PC_Module,self).__init__()
-        self.fc0 = tc.nn.Linear(in_dim,512) # 128 -- 64 -- 32 99.7%
-        self.fc1 = tc.nn.Linear(512,256)
-        self.fc2 = tc.nn.Linear(256,256)
-        self.fc3 = tc.nn.Linear(256,256)
-        self.fc4 = tc.nn.Linear(256,rule_number)
+        self.fc0 = tc.nn.Linear(in_dim,128) # 128 -- 64 -- 32 99.7%
+        self.fc1 = tc.nn.Linear(128,64)
+        self.fc2 = tc.nn.Linear(64,32)
+        #self.fc3 = tc.nn.Linear(256,256)
+        self.fc4 = tc.nn.Linear(32,rule_number)
         
         
     def forward(self,x):
         x = tc.nn.functional.relu(self.fc0(x))
         x = tc.nn.functional.relu(self.fc1(x))
         x = tc.nn.functional.relu(self.fc2(x))
-        x = tc.nn.functional.relu(self.fc3(x))
+        #x = tc.nn.functional.relu(self.fc3(x))
         x = self.fc4(x)
         #should use logic here
         
@@ -165,6 +165,6 @@ if __name__ == "__main__":
 
 
     # currently train on 12 trace files andtest on 3 files.
-#    train_on_file(1,10,1e-2)
+    train_on_file(1,10,1e-2)
 #    train_on_file(10,30,1e-3)
 #    train_on_file(30,50,1e-4)

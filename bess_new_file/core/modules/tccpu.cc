@@ -2,8 +2,10 @@
 
 const Commands TCCPU_ACL::cmds = {};
 CommandResponse TCCPU_ACL::Init(const bess::pb::EmptyArg &) {
-  model = torch::jit::load("/root/cpu.pt");
+  model = torch::jit::load("../../model/first_layer.pt");
   assert(module != nullptr);
+  turn = 0;
+  log.open("torchlog",std::ios::out);
   return CommandSuccess();
 }
 
@@ -33,9 +35,7 @@ void TCCPU_ACL::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   gate_idx_t incoming_gate = ctx->current_igate;
 
   int cnt = batch->cnt();
-
   std::vector<torch::jit::IValue> inputs;
-  double *vecs = new double [13*cnt];
 
   for (int i = 0; i < cnt; i++) {
     bess::Packet *pkt = batch->pkts()[i];
@@ -44,15 +44,22 @@ void TCCPU_ACL::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
     size_t ip_bytes = ip->header_length << 2;
     Udp *udp = reinterpret_cast<Udp *>(reinterpret_cast<uint8_t *>(ip) + ip_bytes);
 
-    build_input(&vecs[13*i],ip->src, ip->dst,
+    build_input(&vecs[13*i+13*32*turn],ip->src, ip->dst,
                 udp->src_port, udp->dst_port, ip->protocol);
   }
 
-  at::Tensor trans = torch::from_blob(vecs, {cnt,13});
-  inputs.push_back(trans);
-  at::Tensor output = model.forward(inputs).toTensor();
+  turn = (turn + 1) % kMod;
+  if (turn == 0) {
+    at::Tensor trans = torch::from_blob(vecs, {cnt*kMod,13}).to(torch::kCUDA);
 
-  at::Tensor label = at::argmax(output, /*dim=*/1);
+    inputs.push_back(trans);
+    at::Tensor output = model.forward(inputs).toTensor();
+
+    at::Tensor label = at::argmax(output, /*dim=*/1);
+  }
+  for (int i = 0;i < cnt; i++) EmitPacket(ctx, batch->pkts()[i], incoming_gate);
+
+/*
   auto labelAccessor = label.accessor<long,1>();
   for (int i = 0; i < cnt; i++) {
     if (labelAccessor[i]) {
@@ -61,7 +68,7 @@ void TCCPU_ACL::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
       DropPacket(ctx, batch->pkts()[i]);
     }
   }
-  delete [] vecs;
+*/
 }
 
 ADD_MODULE(TCCPU_ACL, "torch_cpu_acl", "ACL module with NN and torch jit")
