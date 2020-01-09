@@ -4,8 +4,11 @@
 init step
 
 clone bess repo into bess
+
 cd bess
+
 git am ../bess_patches/*
+
 cp -r ../bess_new_file/* .
 
 build bess
