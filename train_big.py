@@ -1,7 +1,7 @@
-# -*- coding: utf-8 -*-
+#!/usr/bin/python3
 
 import numpy as np
-import time
+import os
 import torch as tc
 import torch.utils.data
 from torch.autograd import Variable
@@ -85,9 +85,19 @@ def save_everything():
         if l_model:
             l_model.save_model("model/second_layer_%d.pt" % i)
 
+def look_rule_number():
+    s = list(os.walk("data"))[0][2][0]
+    if s.endswith(".rule"):
+        return int(s[5:s.find(".rule")])
+    elif s.endswith(".trace"):
+        return int(s[5:s.rfind("_")])
+    else:
+        Assert(False)
+
+
 if __name__ == "__main__":
-    rule_number = 20000 # rule-number
-    num_group = 256  #first nn output width
+    rule_number = look_rule_number() # rule-number
+    num_group = 1  #first nn output width
     model = PC_Module(13,num_group).cuda()
     classifier = linar_classifier("data/rule_{0}.rule".format(rule_number))
     loss_fn = tc.nn.CrossEntropyLoss()
@@ -164,7 +174,7 @@ if __name__ == "__main__":
 
 
     # currently train on 12 trace files andtest on 3 files.
-    train_on_file(1,10,1e-2)
+#    train_on_file(1,10,1e-2)
 #    train_on_file(10,30,1e-3)
 #    train_on_file(30,50,1e-4)
     save_everything()
