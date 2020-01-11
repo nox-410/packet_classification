@@ -56,13 +56,13 @@ class HeaderData(tc.utils.data.Dataset):
 
 
 class PC_Module(tc.nn.Module):
-    def __init__(self,in_dim,rule_number):
+    def __init__(self,in_dim,out_dim):
         super(PC_Module,self).__init__()
         self.fc0 = tc.nn.Linear(in_dim,128) # 128 -- 64 -- 32 99.7%
         self.fc1 = tc.nn.Linear(128,64)
         self.fc2 = tc.nn.Linear(64,32)
         #self.fc3 = tc.nn.Linear(256,256)
-        self.fc4 = tc.nn.Linear(32,rule_number)
+        self.fc4 = tc.nn.Linear(32,out_dim)
         
         
     def forward(self,x):
@@ -86,7 +86,7 @@ def save_everything():
             l_model.save_model("model/second_layer_%d.pt" % i)
 
 if __name__ == "__main__":
-    rule_number = 10000 # rule-number
+    rule_number = 20000 # rule-number
     num_group = 256  #first nn output width
     model = PC_Module(13,num_group).cuda()
     classifier = linar_classifier("data/rule_{0}.rule".format(rule_number))
@@ -106,7 +106,7 @@ if __name__ == "__main__":
             x, _ = classifier.preprocess("data/rule_{0}_{1}.trace".format(rule_number, i))
             y = classifier.call_on_batch(x, 256)
             #switch rule label to group label
-            y = tc.tensor(mark[y.cpu()],dtype=tc.int64,device=dev)
+            y = tc.tensor(mark[y.cpu()],dtype=tc.int64,device=dev) - 1
             x, _ = preprocess("data/rule_{0}_{1}.trace".format(rule_number, i))
 
             MyDataSet = HeaderData(x,y)
