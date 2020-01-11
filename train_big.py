@@ -86,7 +86,7 @@ def save_everything():
             l_model.save_model("model/second_layer_%d.pt" % i)
 
 if __name__ == "__main__":
-    rule_number = 1000 # rule-number
+    rule_number = 10000 # rule-number
     num_group = 256  #first nn output width
     model = PC_Module(13,num_group).cuda()
     classifier = linar_classifier("data/rule_{0}.rule".format(rule_number))
@@ -131,7 +131,6 @@ if __name__ == "__main__":
             print('file {:d} Train Loss: {:.6f}, Acc: {:.6f}'.format(i,
                   train_loss/x.shape[0],
                   train_acc/x.shape[0]))
-            model.save_model("model/first_layer.pt")
 
     def test(st,ed):
         for i in range(st,ed):
@@ -168,3 +167,4 @@ if __name__ == "__main__":
     train_on_file(1,10,1e-2)
 #    train_on_file(10,30,1e-3)
 #    train_on_file(30,50,1e-4)
+    save_everything()
