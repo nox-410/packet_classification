@@ -97,7 +97,7 @@ def look_rule_number():
 
 if __name__ == "__main__":
     rule_number = look_rule_number() # rule-number
-    num_group = 1  #first nn output width
+    num_group = 20  #first nn output width
     model = PC_Module(13,num_group).cuda()
     classifier = linar_classifier("data/rule_{0}.rule".format(rule_number))
     loss_fn = tc.nn.CrossEntropyLoss()

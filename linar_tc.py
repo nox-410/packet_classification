@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 import numpy as np
 import time
 import torch as tc
@@ -20,7 +18,6 @@ class Rule:
         self.sport_b, self.sport_e = int(L[2]), int(L[4])
         self.dport_b, self.dport_e = int(L[5]), int(L[7])
         prot , protmask = map(eval,L[8].split('/'))
-        #self.prio0,self.prio1 = map(eval,L[9].split('/'))
         sip = ip2uint(sip)
         dip = ip2uint(dip)
         smask = ((1 << int(smasklen)) - 1) << (32 - int(smasklen))
@@ -37,7 +34,6 @@ class Rule:
                          self.prot_b,self.sip_e,self.dip_e,
                          self.sport_e,self.dport_e,self.prot_e])
 
-
 def Init_rule_set(path):
     f = open(path)
     rule_array = []
@@ -51,15 +47,12 @@ def Init_rule_set(path):
     f.close()
     return rule_set
 
-
-
-
 class linar_classifier(tc.nn.Module):
     def __init__(self,path):
         super(linar_classifier, self).__init__()
         if type(path) is np.ndarray:
             rule_set = path
-        else:    
+        else:
             rule_set = Init_rule_set(path)
         self.rule = tc.tensor(rule_set,
                               dtype=tc.int64,
@@ -110,22 +103,54 @@ class linar_classifier(tc.nn.Module):
 
     def do_split(self,mark):
         result = [[] for i in range(mark.max()+1)]
+        mapper = [[] for i in range(mark.max()+1)]
         for i,rule in enumerate(self.rule.tolist()):
             index = mark[i]
             if index == 0:
                 continue
             result[index].append(rule)
+            mapper[index].append(i)
         for i in range(result.__len__()):
             if result[i] == []:
                 result[i] = None
             else:
-                result[i] = linar_classifier(np.array(result[i]))
+                result[i] = linar_classifier_l2(np.array(result[i]),
+                                                np.array(mapper[i]),
+                                                self.rule.shape[0])
         return result
-   
+
     def save_model(self,path):
         tc.jit.script(self).save(path)
 
+class linar_classifier_l2(tc.nn.Module):
+    def __init__(self,rule_set,mapper,max_rule_num):
+        super(linar_classifier_l2, self).__init__()
+        assert(type(rule_set) is np.ndarray)
+        self.rule = tc.tensor(rule_set,
+                              dtype=tc.int64,
+                              device="cuda")
+        self.mask = tc.tensor([1,1,1,1,1,-1,-1,-1,-1,-1],
+                              dtype=tc.int64,
+                              device="cuda")
+        self.mapper = tc.tensor(mapper,dtype=tc.int32,device="cuda")
+        self.max_rule_num = max_rule_num
 
+    def forward(self,x):
+        x = tc.reshape(x,[-1,1,5])
+        x = x.repeat([1,1,2])
+        x = (x - self.rule)*self.mask
+        x = (x >= 0)
+        x = x.all(dim=2)
+        x = tc.where(x,
+                     self.mapper,
+                     tc.tensor(self.max_rule_num,
+                               dtype=tc.int32,
+                               device="cuda"))
+        x = x.min(dim=1)[0]
+        return x
+
+    def save_model(self,path):
+        tc.jit.script(self).save(path)
 
 if __name__ == "__main__":
     rule_number = 256
@@ -140,4 +165,3 @@ if __name__ == "__main__":
     print(time.time()-start_time)
     sc = tc.jit.script(model)
     sc.save("model/model.pt")
-
