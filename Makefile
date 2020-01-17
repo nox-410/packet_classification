@@ -6,7 +6,7 @@ bess:
 	@echo cloning bess
 	@git clone /pub/bess/.git
 	@echo appling bess patches
-	@cd bess;git am ../bess_patches/*
+	@cd bess;git apply ../bess_patches/*
 	@cp bess_new_file/* bess/ -r
 	@echo add bess dependency
 	@ln -s /pub/libtorch bess/deps/libtorch
