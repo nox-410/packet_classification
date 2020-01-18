@@ -1,24 +1,23 @@
-From d4d9122125d54a0e92966c7c12823397cb94b8a2 Mon Sep 17 00:00:00 2001
+From 6c61f8e13a63d23041f765532e846dc5645542bd Mon Sep 17 00:00:00 2001
 From: SYN <1700012728@pku.edu.cn>
-Date: Fri, 27 Dec 2019 19:45:42 -0800
-Subject: [PATCH] Bess protobuf patch
+Date: Sat, 18 Jan 2020 10:32:14 +0800
+Subject: [PATCH] bess protobuf module support
 
-Signed-off-by: SYN <1700012728@pku.edu.cn>
 ---
  protobuf/module_msg.proto | 38 ++++++++++++++++++++++++++++++++++++++
  1 file changed, 38 insertions(+)
 
 diff --git a/protobuf/module_msg.proto b/protobuf/module_msg.proto
-index ef901a3e..45221edf 100644
+index ef901a3e..922868b0 100644
 --- a/protobuf/module_msg.proto
 +++ b/protobuf/module_msg.proto
 @@ -292,6 +292,11 @@ message DRRMaxFlowQueueSizeArg {
    uint32 max_queue_size = 1;  /// the max size that any Flows queue can get
  }
  
-+message PC_TCArg {
++message TCGPU_ACLArg {
 +  string prefix = 1;
-+  uint32 width = 2;
++  uint32 batch = 2;
 +}
 +
  /**

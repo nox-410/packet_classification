@@ -1,13 +1,16 @@
-#include "tccpu.h"
+#include "tcgpu.h"
 
-const Commands TCCPU_ACL::cmds = {};
-CommandResponse TCCPU_ACL::Init(const bess::pb::EmptyArg &) {
+const Commands TCGPU_ACL::cmds = {};
+CommandResponse TCGPU_ACL::Init(const bess::pb::TCGPU_ACLArg &arg) {
   std::string prefix = "../../model/";
   model = torch::jit::load(prefix+"first_layer.pt");
   assert(module != nullptr);
   turn = 0;
   log.open("torchlog",std::ios::out);
 
+
+  kMod = arg.batch();
+  vecs = new double [32*13*kMod];
   std::stringstream ss;
   for (int i = 1;i <= kL1Width; i++) {
     ss << prefix << "second_layer_" << i << ".pt";
@@ -20,6 +23,10 @@ CommandResponse TCCPU_ACL::Init(const bess::pb::EmptyArg &) {
   }
   log << "Load L2 Models Number:" << numL2Model << std::endl;
   return CommandSuccess();
+}
+
+TCGPU_ACL::~TCGPU_ACL() {
+  delete [] vecs;
 }
 
 static void build_input(double dst[], const ipv4_5tuple &tuple){
@@ -40,7 +47,7 @@ static void build_input_l2(uint32_t dst[], std::vector<ipv4_5tuple> &v){
   }
 }
 
-void TCCPU_ACL::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
+void TCGPU_ACL::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   using bess::utils::Ethernet;
   using bess::utils::Ipv4;
   using bess::utils::Udp;
@@ -109,4 +116,4 @@ void TCCPU_ACL::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
 
 }
 
-ADD_MODULE(TCCPU_ACL, "torch_cpu_acl", "ACL module with NN and torch jit")
+ADD_MODULE(TCGPU_ACL, "torch_gpu_acl", "ACL module with NN and torch jit")
